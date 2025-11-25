@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEON WARS 2: Cyber Revolution</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { touch-action: none; -webkit-touch-callout: none; user-select: none; outline: none; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; overflow: hidden; background-color: #020205; font-family: 'Orbitron', sans-serif; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        
+        /* طبقات الواجهة */
+        .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; align-items: center; }
+        
+        /* الشاشات */
+        .screen { background: rgba(2, 2, 5, 0.95); z-index: 100; justify-content: center; pointer-events: auto; }
+        
+        h1 { 
+            color: #00f3ff; text-shadow: 0 0 20px #00f3ff, 0 0 40px #00f3ff; 
+            font-size: 40px; margin: 0; text-align: center; letter-spacing: 2px;
+            background: -webkit-linear-gradient(#fff, #00f3ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        h2 { color: #f1c40f; margin: 10px 0; font-size: 20px; }
+        
+        .btn {
+            background: linear-gradient(45deg, rgba(0, 243, 255, 0.2), rgba(0,0,0,0));
+            border: 1px solid #00f3ff; border-left: 5px solid #00f3ff;
+            color: #fff; padding: 15px 40px; font-size: 20px; font-family: 'Orbitron', sans-serif;
+            cursor: pointer; margin-top: 20px; text-transform: uppercase; width: 280px;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3); transform: skewX(-10deg);
+            transition: 0.2s; pointer-events: auto;
+        }
+        .btn:active { transform: skewX(-10deg) scale(0.95); background: #00f3ff; color: #000; }
+        
+        /* المتجر */
+        #shop-screen { display: none; z-index: 90; }
+        .shop-item {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 80%; background: rgba(255,255,255,0.05); margin: 10px 0; padding: 15px;
+            border: 1px solid #444; transform: skewX(-5deg); pointer-events: auto;
+        }
+        .shop-btn {
+            background: #f1c40f; color: #000; border: none; padding: 8px 15px;
+            font-weight: bold; cursor: pointer; transform: skewX(5deg);
+        }
+        
+        /* الواجهة أثناء اللعب */
+        #hud { 
+            width: 100%; padding: 15px; box-sizing: border-box; 
+            display: flex; justify-content: space-between; 
+            font-size: 18px; color: #fff; text-shadow: 0 2px 4px #000;
+        }
+        .bar-container { width: 100px; height: 10px; background: #333; margin-top: 5px; transform: skewX(-20deg); }
+        .bar-fill { height: 100%; background: #00f3ff; width: 100%; box-shadow: 0 0 10px #00f3ff; transition: width 0.2s; }
+        
+        #shop-btn-ingame {
+            position: absolute; top: 60px; right: 20px;
+            background: #f1c40f; color: #000; width: 50px; height: 50px;
+            border-radius: 50%; font-size: 24px; display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 20px #f1c40f; cursor: pointer; pointer-events: auto;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        /* رسائل عائمة */
+        #msg-area { position: absolute; top: 20%; width: 100%; text-align: center; pointer-events: none; }
+        .float-msg { font-size: 24px; font-weight: bold; color: #fff; text-shadow: 0 0 10px #f00; animation: fadeUp 1s forwards; }
+        @keyframes fadeUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-50px); } }
+
+    </style>
+</head>
+<body>
+
+    <!-- الشاشة الرئيسية -->
+    <div id="start-screen" class="screen layer">
+        <h1>NEON WARS 2</h1>
+        <h2>CYBER REVOLUTION</h2>
+        <p style="color:#888; margin-bottom: 30px;">COLLECT DATA CHIPS - UPGRADE - SURVIVE</p>
+        <button class="btn" onclick="startGame()">INITIATE</button>
+    </div>
+
+    <!-- المتجر -->
+    <div id="shop-screen" class="screen layer">
+        <h1 style="font-size: 30px; color: #f1c40f;">CYBER SHOP</h1>
+        <p>CREDITS: <span id="shop-credits">0</span></p>
+        
+        <div class="shop-item">
+            <div>
+                <div style="color:#00f3ff">DMG UPGRADE</div>
+                <div style="font-size:10px; color:#aaa;">INCREASE WEAPON DAMAGE</div>
+            </div>
+            <button class="shop-btn" onclick="buyUpgrade('dmg')">100 C</button>
+        </div>
+
+        <div class="shop-item">
+            <div>
+                <div style="color:#00ff00">HP REPAIR</div>
+                <div style="font-size:10px; color:#aaa;">HEAL 50% HP</div>
+            </div>
+            <button class="shop-btn" onclick="buyUpgrade('heal')">50 C</button>
+        </div>
+
+        <div class="shop-item">
+            <div>
+                <div style="color:#ff0055">SHOTGUN</div>
+                <div style="font-size:10px; color:#aaa;">UNLOCK SPREAD SHOT</div>
+            </div>
+            <button class="shop-btn" id="btn-shotgun" onclick="buyWeapon('shotgun')">500 C</button>
+        </div>
+
+        <button class="btn" onclick="closeShop()">RESUME BATTLE</button>
+    </div>
+
+    <!-- شاشة الخسارة -->
+    <div id="game-over-screen" class="screen layer" style="display:none;">
+        <h1 style="color:#ff0055">SYSTEM FAILURE</h1>
+        <p>SCORE: <span id="final-score">0</span></p>
+        <button class="btn" onclick="location.reload()">REBOOT SYSTEM</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- الواجهة -->
+    <div id="ui-layer" class="layer">
+        <div id="hud">
+            <div>
+                <span style="color:#f1c40f">💎 <span id="ui-credits">0</span></span>
+                <div style="font-size:12px; color:#aaa;">KILLS: <span id="ui-score">0</span></div>
+            </div>
+            <div style="text-align: right;">
+                <div style="color:#00f3ff">HP</div>
+                <div class="bar-container"><div id="hp-bar" class="bar-fill"></div></div>
+            </div>
+        </div>
+        <div id="msg-area"></div>
+        <div id="shop-btn-ingame" onclick="openShop()">🛒</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // === إعدادات الشاشة ===
+        let width, height;
+        function resize() {
+            width = window.innerWidth; height = window.innerHeight;
+            canvas.width = width; canvas.height = height;
+        }
+        window.addEventListener('resize', resize); resize();
+
+        // === حالة اللعبة ===
+        let state = 'menu'; // menu, game, shop, gameover
+        let score = 0;
+        let credits = 0;
+        let frame = 0;
+        
+        // === الكائنات ===
+        let player;
+        let enemies = [];
+        let bullets = [];
+        let particles = []; // للبارتكلز
+        let texts = []; // لأرقام الضرر
+        let drops = []; // الكريستالات
+
+        // === ترقيات اللاعب ===
+        let stats = {
+            dmg: 10,
+            maxHp: 100,
+            hasShotgun: false
+        };
+
+        const input = { active: false, x:0, y:0, startX:0, startY:0, dx:0, dy:0, id:null };
+
+        // === الفئات (Classes) ===
+
+        class FloatingText {
+            constructor(x, y, text, color) {
+                this.x = x + (Math.random()-0.5)*20;
+                this.y = y;
+                this.text = text;
+                this.color = color;
+                this.life = 1.0;
+                this.vy = -1; // يتحرك للأعلى
+            }
+            update() {
+                this.y += this.vy;
+                this.life -= 0.02;
+            }
+            draw() {
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = this.color;
+                ctx.font = "bold 16px Arial";
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class Drop {
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                this.radius = 8;
+                this.life = 600; // 10 ثواني
+            }
+            update() {
+                // انجذاب للاعب
+                let dx = player.x - this.x;
+                let dy = player.y - this.y;
+                let dist = Math.hypot(dx, dy);
+                if(dist < 150) {
+                    this.x += (dx/dist) * 8;
+                    this.y += (dy/dist) * 8;
+                }
+                if(dist < player.radius + this.radius) {
+                    credits += 10; // قيمة الكريستالة
+                    updateUI();
+                    return true; // تم الجمع
+                }
+                return false;
+            }
+            draw() {
+                ctx.save(); ctx.translate(this.x, this.y);
+                ctx.rotate(frame * 0.1);
+                ctx.shadowBlur = 10; ctx.shadowColor = '#f1c40f';
+                ctx.fillStyle = '#f1c40f';
+                ctx.fillRect(-5, -5, 10, 10);
+                ctx.restore();
+            }
+        }
+
+        class Agent {
+            constructor(x, y, type) {
+                this.x = x; this.y = y; this.type = type;
+                this.angle = 0;
+                this.trail = []; // ذيل للحركة
+
+                if(type === 'player') {
+                    this.hp = stats.maxHp; this.maxHp = stats.maxHp;
+                    this.speed = 4.5; this.radius = 15; this.color = '#00f3ff';
+                } else if (type === 'tank') { // عدو جديد
+                    this.hp = 100; this.speed = 1.5; this.radius = 25; this.color = '#aa00ff';
+                } else if (type === 'kami') { // عدو انتحاري
+                    this.hp = 20; this.speed = 6; this.radius = 12; this.color = '#ffaa00';
+                } else { // عادي
+                    this.hp = 40; this.speed = 2.5; this.radius = 15; this.color = '#ff0055';
+                }
+            }
+
+            update() {
+                // حفظ الذيل
+                if(frame % 3 === 0) {
+                    this.trail.push({x:this.x, y:this.y, life:1});
+                    if(this.trail.length > 5) this.trail.shift();
+                }
+
+                if(this.type === 'player') {
+                    if(input.active) {
+                        this.x += input.dx * this.speed;
+                        this.y += input.dy * this.speed;
+                        
+                        // Auto Aim
+                        let nearest = null, minDist = 9999;
+                        enemies.forEach(e => {
+                            let d = Math.hypot(e.x - this.x, e.y - this.y);
+                            if(d < minDist) { minDist = d; nearest = e; }
+                        });
+                        if(nearest && minDist < 450) this.angle = Math.atan2(nearest.y - this.y, nearest.x - this.x);
+                        else if (input.dx||input.dy) this.angle = Math.atan2(input.dy, input.dx);
+
+                        // Shoot
+                        if(frame % 15 === 0) shoot(this);
+                    }
+                } else {
+                    // Enemy AI
+                    let t = player;
+                    let angle = Math.atan2(t.y - this.y, t.x - this.x);
+                    let dist = Math.hypot(t.x - this.x, t.y - this.y);
+
+                    if(this.type === 'kami' || this.type === 'tank') {
+                        // هجوم مباشر
+                        this.x += Math.cos(angle) * this.speed;
+                        this.y += Math.sin(angle) * this.speed;
+                        if(dist < this.radius + t.radius) {
+                            // ضرر عند التلامس
+                            player.hp -= 10;
+                            spawnText(player.x, player.y, "-10", "#f00");
+                            createExplosion(this.x, this.y, this.color);
+                            updateUI();
+                            if(this.type === 'kami') return true; // يموت
+                        }
+                    } else {
+                        // يطلق النار ويبتعد
+                        if(dist > 150) {
+                            this.x += Math.cos(angle) * this.speed;
+                            this.y += Math.sin(angle) * this.speed;
+                        }
+                        if(Math.random() < 0.02) shoot(this);
+                    }
+                    this.angle = angle;
+                }
+                
+                // Boundaries
+                this.x = Math.max(20, Math.min(width-20, this.x));
+                this.y = Math.max(20, Math.min(height-20, this.y));
+                return false; // لا يزال حياً
+            }
+
+            draw() {
+                // رسم الذيل
+                for(let t of this.trail) {
+                    ctx.fillStyle = this.color;
+                    ctx.globalAlpha = 0.3;
+                    ctx.beginPath(); ctx.arc(t.x, t.y, this.radius*0.8, 0, Math.PI*2); ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+                ctx.shadowBlur = 15; ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+                
+                if(this.type === 'tank') {
+                    ctx.fillRect(-20, -20, 40, 40); // مربع كبير
+                } else if (this.type === 'kami') {
+                    ctx.beginPath(); ctx.moveTo(15,0); ctx.lineTo(-10, 10); ctx.lineTo(-10, -10); ctx.fill(); // مثلث
+                } else {
+                    ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI*2); ctx.fill(); // دائرة
+                }
+                
+                // سلاح
+                if(this.type !== 'kami') {
+                    ctx.fillStyle = '#fff';
+                    if(stats.hasShotgun && this.type==='player') {
+                        ctx.fillRect(10, -8, 20, 5); ctx.fillRect(10, 3, 20, 5); // مزدوج
+                    } else {
+                        ctx.fillRect(10, -3, 15, 6);
+                    }
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // === الوظائف الأساسية ===
+
+        function shoot(s) {
+            let shots = [];
+            if(s.type === 'player' && stats.hasShotgun) {
+                shots.push(s.angle, s.angle-0.2, s.angle+0.2); // شوتجن
+            } else {
+                shots.push(s.angle); // عادي
+            }
+            
+            shots.forEach(a => {
+                bullets.push({
+                    x: s.x, y: s.y, 
+                    vx: Math.cos(a)*12, vy: Math.sin(a)*12,
+                    color: s.color, owner: s.type==='player'?'p':'e',
+                    dmg: s.type==='player' ? stats.dmg : 5
+                });
+            });
+        }
+
+        function spawnEnemy() {
+            let r = Math.random();
+            let type = 'enemy';
+            if(r < 0.2) type = 'tank';
+            else if(r < 0.4) type = 'kami';
+            
+            let ex = Math.random()*width;
+            let ey = -50; // من الأعلى
+            if(Math.random()<0.5) { ex = -50; ey = Math.random()*height; } // من الجانب
+            
+            enemies.push(new Agent(ex, ey, type));
+        }
+
+        function createExplosion(x, y, color) {
+            for(let i=0; i<10; i++) {
+                particles.push({
+                    x:x, y:y, vx:(Math.random()-0.5)*10, vy:(Math.random()-0.5)*10,
+                    life:1, color:color
+                });
+            }
+        }
+
+        function spawnText(x, y, txt, col) {
+            texts.push(new FloatingText(x, y, txt, col));
+        }
+
+        function updateUI() {
+            document.getElementById('ui-score').innerText = score;
+            document.getElementById('ui-credits').innerText = credits;
+            let hpPct = Math.max(0, (player.hp / player.maxHp)*100);
+            document.getElementById('hp-bar').style.width = hpPct + "%";
+            
+            if(player.hp <= 0) gameOver();
+        }
+
+        // === المتجر ===
+        function openShop() {
+            state = 'shop';
+            document.getElementById('shop-screen').style.display = 'flex';
+            document.getElementById('shop-credits').innerText = credits;
+        }
+        function closeShop() {
+            state = 'game';
+            document.getElementById('shop-screen').style.display = 'none';
+        }
+        function buyUpgrade(type) {
+            if(type === 'dmg' && credits >= 100) {
+                credits -= 100; stats.dmg += 5;
+                spawnText(width/2, height/2, "DMG UPGRADED!", "#0f0");
+            }
+            if(type === 'heal' && credits >= 50) {
+                credits -= 50; player.hp = player.maxHp; updateUI();
+                spawnText(width/2, height/2, "HP RESTORED!", "#0f0");
+            }
+            document.getElementById('shop-credits').innerText = credits;
+            updateUI();
+        }
+        function buyWeapon(name) {
+            if(name === 'shotgun' && credits >= 500 && !stats.hasShotgun) {
+                credits -= 500; stats.hasShotgun = true;
+                document.getElementById('btn-shotgun').innerText = "OWNED";
+                spawnText(width/2, height/2, "SHOTGUN UNLOCKED!", "#f1c40f");
+                document.getElementById('shop-credits').innerText = credits;
+                updateUI();
+            }
+        }
+
+        // === دورة اللعبة ===
+
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            player = new Agent(width/2, height/2, 'player');
+            enemies = []; bullets = []; drops = []; texts = [];
+            score = 0; credits = 0;
+            state = 'game';
+            updateUI();
+            loop();
+        }
+
+        function gameOver() {
+            state = 'gameover';
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('game-over-screen').style.display = 'flex';
+            document.getElementById('ui-layer').style.display = 'none';
+        }
+
+        function loop() {
+            if(state !== 'game') return; // توقف عند المتجر أو الخسارة
+            requestAnimationFrame(loop);
+            frame++;
+
+            // خلفية
+            ctx.fillStyle = '#020205'; ctx.fillRect(0,0,width,height);
+            // شبكة سايبر
+            ctx.strokeStyle = `rgba(0, 243, 255, ${0.05 + Math.sin(frame*0.05)*0.02})`; 
+            ctx.lineWidth = 1; ctx.beginPath();
+            for(let i=0; i<width; i+=60) { ctx.moveTo(i,0); ctx.lineTo(i,height); }
+            for(let i=0; i<height; i+=60) { ctx.moveTo(0,i); ctx.lineTo(width,i); }
+            ctx.stroke();
+
+            // Spawn Enemies
+            if(enemies.length < 5 + Math.floor(score/50)) {
+                if(Math.random() < 0.03) spawnEnemy();
+            }
+
+            // Update Entities
+            player.update(); player.draw();
+
+            // Drops
+            for(let i=drops.length-1; i>=0; i--) {
+                drops[i].draw();
+                if(drops[i].update()) drops.splice(i,1);
+            }
+
+            // Enemies
+            for(let i=enemies.length-1; i>=0; i--) {
+                let e = enemies[i];
+                let died = e.update(); // هل مات بالتصادم؟
+                e.draw();
+                if(died) { enemies.splice(i,1); }
+            }
+
+            // Bullets
+            for(let i=bullets.length-1; i>=0; i--) {
+                let b = bullets[i];
+                b.x += b.vx; b.y += b.vy;
+                ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x,b.y, 4, 0, Math.PI*2); ctx.fill();
+
+                // Hit Logic
+                if(b.x<0||b.x>width||b.y<0||b.y>height) { bullets.splice(i,1); continue; }
+
+                let targets = (b.owner === 'p') ? enemies : [player];
+                for(let t of targets) {
+                    if(Math.hypot(b.x-t.x, b.y-t.y) < t.radius+10) {
+                        createExplosion(t.x, t.y, b.color);
+                        if(b.owner === 'p') {
+                            t.hp -= b.dmg;
+                            spawnText(t.x, t.y, b.dmg, "#fff");
+                            if(t.hp <= 0) {
+                                score += 10;
+                                drops.push(new Drop(t.x, t.y)); // اسقاط المال
+                                enemies = enemies.filter(e => e !== t);
+                                updateUI();
+                            }
+                        } else {
+                            player.hp -= 5;
+                            spawnText(player.x, player.y, "-5", "#f00");
+                            updateUI();
+                        }
+                        bullets.splice(i,1); break;
+                    }
+                }
+            }
+
+            // Particles & Texts
+            particles.forEach((p,i) => {
+                p.x+=p.vx; p.y+=p.vy; p.life-=0.05; 
+                ctx.globalAlpha=p.life; ctx.fillStyle=p.color; 
+                ctx.beginPath(); ctx.arc(p.x,p.y,2,0,Math.PI*2); ctx.fill(); 
+                if(p.life<=0) particles.splice(i,1);
+            });
+            ctx.globalAlpha=1;
+
+            texts.forEach((t,i) => {
+                t.update(); t.draw();
+                if(t.life<=0) texts.splice(i,1);
+            });
+
+            // Joystick Draw
+            if(input.active) {
+                ctx.beginPath(); ctx.arc(input.startX, input.startY, 40, 0, Math.PI*2);
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth=2; ctx.stroke();
+                ctx.beginPath(); ctx.arc(input.x, input.y, 20, 0, Math.PI*2);
+                ctx.fillStyle = 'rgba(0, 243, 255, 0.5)'; ctx.fill();
+            }
+        }
+
+        // === المدخلات (Touch) ===
+        window.addEventListener('touchstart', e => {
+            if(e.target.tagName === 'BUTTON' || e.target.id === 'shop-btn-ingame') return;
+            if(state !== 'game') return;
+            e.preventDefault();
+            if(!input.active) {
+                let t = e.changedTouches[0];
+                input.active = true; input.id = t.identifier;
+                input.startX = t.clientX; input.startY = t.clientY;
+                input.x = t.clientX; input.y = t.clientY;
+            }
+        }, {passive:false});
+
+        window.addEventListener('touchmove', e => {
+            if(state !== 'game') return;
+            e.preventDefault();
+            for(let i=0; i<e.changedTouches.length; i++) {
+                let t = e.changedTouches[i];
+                if(input.active && t.identifier === input.id) {
+                    let dx = t.clientX - input.startX;
+                    let dy = t.clientY - input.startY;
+                    let dist = Math.min(40, Math.hypot(dx, dy));
+                    let angle = Math.atan2(dy, dx);
+                    input.x = input.startX + Math.cos(angle)*dist;
+                    input.y = input.startY + Math.sin(angle)*dist;
+                    input.dx = Math.cos(angle)*(dist/40);
+                    input.dy = Math.sin(angle)*(dist/40);
+                }
+            }
+        }, {passive:false});
+
+        window.addEventListener('touchend', e => {
+             for(let i=0; i<e.changedTouches.length; i++) {
+                if(e.changedTouches[i].identifier === input.id) {
+                    input.active = false; input.dx=0; input.dy=0;
+                }
+             }
+        });
+
+    </script>
+</body>
+</html>
